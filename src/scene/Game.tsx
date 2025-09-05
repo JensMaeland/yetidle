@@ -25,6 +25,7 @@ export function Game() {
   const [gameOver, setGameOver] = useState(false);
   const [gameWon, setGameWon] = useState(false);
   const [elapsed, setElapsed] = useState<number | null>(null);
+  const [eliminated, setEliminated] = useState<Set<string>>(()=>new Set()); // letters confirmed absent
   const startTimeRef = useRef<number>(performance.now());
   const slotPositions: [number,number,number][] = [-2,-1,0,1,2].map(x=>[x*1.2,0,-20]);
   const [slots,setSlots] = useState<Array<{id:number;char:string}|null>>([null,null,null,null,null]);
@@ -37,6 +38,13 @@ export function Game() {
     for (let i=0;i<5;i++){ if(guess[i]===tArr[i]) { colors[i]='blue'; used[i]=true; } }
     for (let i=0;i<5;i++){ if(colors[i]==='blue') continue; const ch=guess[i]; let f=-1; for(let j=0;j<5;j++){ if(!used[j]&& tArr[j]===ch && guess[j]!==tArr[j]){ f=j; break;} } if(f!==-1){ colors[i]='yellow'; used[f]=true; } }
   setGuesses(g=>[...g,guess]); setFeedback(f=>[...f,colors]);
+  // Mark eliminated letters (those not appearing anywhere in target)
+  const unique = new Set(guess.split(''));
+  setEliminated(prev => {
+    const next = new Set(prev);
+    unique.forEach(ch => { if (!target.includes(ch)) next.add(ch); });
+    return next;
+  });
   const isWin = guess === target;
   if (isWin) {
     setGameWon(true);
@@ -46,11 +54,11 @@ export function Game() {
     const count = guesses.length + 1; // new count after adding
     const speed = 1.5 + count * 0.7; // escalate speed
     const angle = Math.random()*Math.PI*2;
-    const dist = 15; // spawn radius
+    const spawnRadius = 15; // spawn radius
     const px = playerRef.current?.position.x || 0;
     const pz = playerRef.current?.position.z || 0;
-    const mx = px + Math.cos(angle)*dist;
-    const mz = pz + Math.sin(angle)*dist;
+    const mx = px + Math.cos(angle)*spawnRadius;
+    const mz = pz + Math.sin(angle)*spawnRadius;
     const monsterPalette = ['#ff4444','#ff8844','#ffcc44','#ffee55','#ffffff'];
     const color = monsterPalette[Math.min(monsterPalette.length-1, count-1)];
     setMonsters(ms => [...ms, { id: Date.now(), speed, position:[mx,0.5,mz], color }]);
@@ -139,7 +147,7 @@ export function Game() {
         <Monster key={m.id} data={m} targetRef={playerRef} onCatch={()=> { if(!gameWon){ setGameOver(true); setElapsed((performance.now() - startTimeRef.current) / 1000); } }} />
       ))}
   {/* Infinite pickup ring (gold) */}
-  {ALPHABET.map((c,i)=>{ const [x,y,z]=ringPos(i); return <LetterCube key={'ring-'+c} char={c} position={[x,y,z]} color={'#c9a227'} />; })}
+  {ALPHABET.map((c,i)=>{ const [x,y,z]=ringPos(i); const col = eliminated.has(c) ? '#555555' : '#c9a227'; return <LetterCube key={'ring-'+c} char={c} position={[x,y,z]} color={col} />; })}
       {/* Guess slots */}
       {slotPositions.map((pos,i)=>(
         <group key={i} position={[pos[0],0,pos[2]]}>

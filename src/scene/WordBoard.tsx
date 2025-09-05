@@ -56,7 +56,10 @@ export const WordBoard: React.FC<WordBoardProps> = ({ target, guesses=[], feedba
         <meshStandardMaterial color="#333" />
       </mesh>
       {cells}
-  {/* Debug target word (comment out for production) */}
+      {/* Debug target word (comment out for production) */}
+      <Text position={[0, 3.8, 0]} fontSize={0.6} color="#888" anchorX="center" anchorY="middle">
+        {target.toUpperCase()}
+      </Text>
     </group>
   );
 };

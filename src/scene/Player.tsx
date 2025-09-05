@@ -147,6 +147,11 @@ export const Player = forwardRef<PlayerHandle, PlayerProps>(function Player({ on
 
   return (
     <group ref={group} position={[0,0.5,4]}>
+      {/* Ground circle indicator */}
+      <mesh rotation={[-Math.PI/2,0,0]} position={[0,0.01,0]} renderOrder={-1}>
+        <circleGeometry args={[0.4, 32]} />
+        <meshBasicMaterial color="#ffffff" transparent opacity={0.5} depthWrite={false} />
+      </mesh>
       {/* Minecraft-style blocky avatar (approximate proportions) */}
       {/* Torso */}
       <mesh castShadow position={[0,0.95,0]}>
