@@ -29,14 +29,24 @@ export const Player = forwardRef<PlayerHandle, PlayerProps>(function Player({ on
 
   useImperativeHandle(ref, () => ({ position: group.current.position, rotation: group.current.rotation }), []);
 
+  // Action animation state
+  const actionRef = useRef<{ type: 'idle' | 'pickup' | 'putdown' | 'throw'; t: number; duration: number }>({ type: 'idle', t: 0, duration: 0 });
+  const prevHeldRef = useRef<string | null>(heldChar);
+  const pendingThrowRef = useRef(false); // set on throw key press before state updates
+
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
       const k = e.key.toLowerCase();
       const code = e.code.toLowerCase(); // e.g., 'keyd'
       keys.current[k] = true;
       keys.current[code] = true; // track code variant too
-  if (k === ' ') { e.preventDefault(); onAction(); }
-  if (k === 'e') { e.preventDefault(); onThrow && onThrow(); }
+      if (k === ' ') { e.preventDefault(); onAction(); }
+      if (k === 'e') { 
+        e.preventDefault(); 
+        // mark throw intent (if currently holding a letter) so we can select correct animation
+        if (heldChar) pendingThrowRef.current = true; 
+        onThrow && onThrow(); 
+      }
       // Arrow keys -> camera, prevent default scroll
       if (e.key.startsWith('Arrow')) {
         e.preventDefault();
@@ -137,12 +147,72 @@ export const Player = forwardRef<PlayerHandle, PlayerProps>(function Player({ on
     // (movement already processed above unless frozen)
     timeRef.current += dt;
     if (frozen) return; // keep pose when frozen
+
+    // Detect heldChar transitions for pickup / putdown
+    if (prevHeldRef.current !== heldChar) {
+      const before = prevHeldRef.current;
+      const after = heldChar;
+      if (!before && after) {
+        // picked up
+        actionRef.current = { type: 'pickup', t: 0, duration: 0.45 };
+      } else if (before && !after) {
+        // either putdown or throw (throw flagged earlier)
+        if (pendingThrowRef.current) {
+          actionRef.current = { type: 'throw', t: 0, duration: 0.38 };
+        } else {
+          actionRef.current = { type: 'putdown', t: 0, duration: 0.4 };
+        }
+        pendingThrowRef.current = false;
+      }
+      prevHeldRef.current = heldChar;
+    }
+
+    // Advance action animation timer
+    if (actionRef.current.type !== 'idle') {
+      actionRef.current.t += dt;
+      if (actionRef.current.t >= actionRef.current.duration) {
+        actionRef.current.type = 'idle';
+      }
+    }
+
     const pos = group.current.position;
     const moved = pos.distanceToSquared(lastPos.current) > 0.0001;
     const swing = moved ? Math.sin(timeRef.current * 10) : 0;
     // Basic opposing swings
-    if (armL.current) armL.current.rotation.x = swing * 0.6;
-    if (armR.current) armR.current.rotation.x = -swing * 0.6;
+    let armLRot = swing * 0.6;
+    let armRRot = -swing * 0.6;
+
+    // Override with action animation curves
+    if (actionRef.current.type !== 'idle') {
+      const { type, t, duration } = actionRef.current;
+      const u = Math.min(1, t / duration); // normalized 0..1
+      // Ease helpers
+      const easeInOut = (x:number)=> x<0.5 ? 2*x*x : 1 - Math.pow(-2*x+2,2)/2;
+      const easeOut = (x:number)=> 1 - Math.pow(1-x,2);
+      if (type === 'pickup') {
+        // reach up then return
+        const phase = u < 0.5 ? easeOut(u/0.5) : easeOut((1-u)/0.5);
+        armRRot = -phase * 1.1; // raise forward/up
+        armLRot = phase * 0.3;
+      } else if (type === 'putdown') {
+        const phase = u < 0.5 ? easeInOut(u/0.5) : easeInOut((1-u)/0.5);
+        armRRot = phase * 0.9; // lower backward
+        armLRot = -phase * 0.2;
+      } else if (type === 'throw') {
+        // quick wind-up then snap
+        if (u < 0.25) {
+          const wind = easeOut(u/0.25);
+          armRRot = wind * 0.8; // wind back
+        } else {
+          const rel = (u-0.25)/0.75; // 0..1 release
+            armRRot = -easeOut(rel) * 1.4; // snap forward
+        }
+        armLRot = 0.1 * Math.sin(u * Math.PI * 2); // minor counter motion
+      }
+    }
+
+    if (armL.current) armL.current.rotation.x = armLRot;
+    if (armR.current) armR.current.rotation.x = armRRot;
     if (legL.current) legL.current.rotation.x = -swing * 0.6;
     if (legR.current) legR.current.rotation.x = swing * 0.6;
     lastPos.current.copy(pos);
