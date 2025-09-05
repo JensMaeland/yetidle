@@ -13,9 +13,10 @@ interface MonsterProps {
   data: MonsterData;
   targetRef: React.RefObject<{ position: Vector3 } | null>;
   onCatch?: () => void;
+  onPositionUpdate?: (id:number, position: Vector3) => void; // report live position each frame
 }
 
-export const Monster: React.FC<MonsterProps> = ({ data, targetRef, onCatch }) => {
+export const Monster: React.FC<MonsterProps> = ({ data, targetRef, onCatch, onPositionUpdate }) => {
   const group = useRef<Group>(null!);
   const caughtRef = useRef(false);
   // Set initial spawn position only once (avoid reset on re-render)
@@ -30,7 +31,7 @@ export const Monster: React.FC<MonsterProps> = ({ data, targetRef, onCatch }) =>
   useFrame((_, dt) => {
     if (!group.current || !targetRef.current) return;
     tAccum.current += dt;
-    const pos = group.current.position;
+  const pos = group.current.position;
     const target = targetRef.current.position;
     const dir = new Vector3().subVectors(target, pos);
     const dist = dir.length();
@@ -49,7 +50,7 @@ export const Monster: React.FC<MonsterProps> = ({ data, targetRef, onCatch }) =>
       onCatch && onCatch();
     }
     // limb animation
-    const walkSpeed = 6; // swing speed base
+    const walkSpeed = 12; // swing speed base
     const sway = Math.sin(tAccum.current * walkSpeed) * 0.4;
     const armL = group.current.getObjectByName('armL');
     const armR = group.current.getObjectByName('armR');
@@ -61,7 +62,9 @@ export const Monster: React.FC<MonsterProps> = ({ data, targetRef, onCatch }) =>
     if (armR) armR.rotation.x =  0.6 - sway * 0.6 * intensity;
     if (legL) legL.rotation.x = -0.4 - sway * 0.5 * intensity;
     if (legR) legR.rotation.x = -0.4 + sway * 0.5 * intensity;
-    lastPos.current.copy(pos);
+  lastPos.current.copy(pos);
+  // report position
+  onPositionUpdate && onPositionUpdate(data.id, pos);
   });
 
   // stylized yeti colors

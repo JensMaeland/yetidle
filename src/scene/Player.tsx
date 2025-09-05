@@ -5,17 +5,19 @@ import { LetterCube } from './LetterCube';
 
 interface PlayerProps {
   onAction: () => void;
+  onThrow?: () => void; // triggered when pressing E (throw held eliminated letter)
   heldChar: string | null;
   frozen?: boolean; // when true, stop movement & camera orbit
 }
 
 export interface PlayerHandle {
   position: Vector3;
+  rotation: { y: number };
 }
 
-const SPEED = 16;
+const SPEED = 12;
 
-export const Player = forwardRef<PlayerHandle, PlayerProps>(function Player({ onAction, heldChar, frozen }, ref) {
+export const Player = forwardRef<PlayerHandle, PlayerProps>(function Player({ onAction, onThrow, heldChar, frozen }, ref) {
   const group = useRef<Group>(null!);
   const vel = useRef(new Vector3());
   const keys = useRef<Record<string, boolean>>({});
@@ -25,7 +27,7 @@ export const Player = forwardRef<PlayerHandle, PlayerProps>(function Player({ on
   const camPitch = useRef(35 * Math.PI/180); // radians
   const camRadius = useRef(10); // distance from player
 
-  useImperativeHandle(ref, () => ({ position: group.current.position }), []);
+  useImperativeHandle(ref, () => ({ position: group.current.position, rotation: group.current.rotation }), []);
 
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
@@ -33,7 +35,8 @@ export const Player = forwardRef<PlayerHandle, PlayerProps>(function Player({ on
       const code = e.code.toLowerCase(); // e.g., 'keyd'
       keys.current[k] = true;
       keys.current[code] = true; // track code variant too
-      if (k === ' ') { e.preventDefault(); onAction(); }
+  if (k === ' ') { e.preventDefault(); onAction(); }
+  if (k === 'e') { e.preventDefault(); onThrow && onThrow(); }
       // Arrow keys -> camera, prevent default scroll
       if (e.key.startsWith('Arrow')) {
         e.preventDefault();
