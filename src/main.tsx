@@ -1,7 +1,7 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls, Grid, Stars } from '@react-three/drei';
+import { OrbitControls, Stars } from '@react-three/drei';
 import { Game } from './../src/scene/Game'
 
 function App() {
@@ -30,7 +30,7 @@ function App() {
         <ambientLight intensity={0.4} />
         <directionalLight position={[5,10,5]} intensity={1.2} castShadow shadow-mapSize-width={2048} shadow-mapSize-height={2048} />
         <Stars radius={8} depth={40} count={20000} factor={4} fade />
-        <Grid infiniteGrid sectionColor={"#444"} cellColor={"#222"} />
+  {/* Removed large debug Grid to eliminate visible square pattern behind grass */}
         <Game />
         <OrbitControls makeDefault enablePan={false} />
       </Canvas>

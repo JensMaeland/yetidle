@@ -86,7 +86,7 @@ export function Game() {
           const mz = pz + Math.sin(angle)*spawnRadius;
           // Speed escalation based on lifetime spawn index
           const spawnIndex = totalSpawnedRef.current + i + 1; // 1-based index
-          const speed = 1.5 + spawnIndex * 0.1; // gentler slope than before per monster
+          const speed = 3.5 + spawnIndex * 0.1; // gentler slope than before per monster
           const color = monsterPalette[Math.min(monsterPalette.length-1, spawnIndex-1)];
           newMonsters.push({ id: Date.now() + i, speed, position:[mx,0.5,mz], color });
         }
