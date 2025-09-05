@@ -27,8 +27,25 @@ function App() {
       </div>
       <Canvas shadows camera={{ position: [6, 6, 8], fov: 90 }}>
         <color attach="background" args={["#05070a"]} />
+        <fogExp2 attach="fog" args={["#0c1016", 0.04]} />
         <ambientLight intensity={0.4} />
-        <directionalLight position={[5,10,5]} intensity={1.2} castShadow shadow-mapSize-width={2048} shadow-mapSize-height={2048} />
+        <directionalLight
+          position={[18, 25, 12]}
+          intensity={1.15}
+          castShadow
+          shadow-mapSize-width={2048}
+          shadow-mapSize-height={2048}
+          // Expand orthographic shadow camera so shadows persist away from center
+          shadow-camera-left={-80}
+          shadow-camera-right={80}
+          shadow-camera-top={80}
+          shadow-camera-bottom={-80}
+          shadow-camera-near={0.5}
+            shadow-camera-far={120}
+          // Slight bias to reduce acne
+          shadow-bias={-0.0005}
+          shadow-normalBias={0.02}
+        />
         <Stars radius={8} depth={40} count={20000} factor={4} fade />
   {/* Removed large debug Grid to eliminate visible square pattern behind grass */}
         <Game />
