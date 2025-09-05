@@ -1,10 +1,14 @@
 import React, { useState, useCallback, useRef } from 'react';
+// Using drei Html for reliable overlay within the canvas
+import { Html } from '@react-three/drei';
+import { ResultOverlay } from './ResultOverlay';
 import { Vector3 } from 'three';
 import { LetterCube } from './LetterCube';
 import { Player } from './Player';
 import { WorldFloor } from './WorldFloor';
 import { WordBoard } from './WordBoard';
 import { randomWord } from '../logic/wordList';
+import { Monster, MonsterData } from './Monster';
 
 export type HeldLetter = { char: string } | null;
 
@@ -17,6 +21,11 @@ export function Game() {
   const [target] = useState(() => randomWord());
   const [guesses, setGuesses] = useState<string[]>([]);
   const [feedback, setFeedback] = useState<("blue"|"yellow"|"gray")[][]>([]);
+  const [monsters, setMonsters] = useState<MonsterData[]>([]);
+  const [gameOver, setGameOver] = useState(false);
+  const [gameWon, setGameWon] = useState(false);
+  const [elapsed, setElapsed] = useState<number | null>(null);
+  const startTimeRef = useRef<number>(performance.now());
   const slotPositions: [number,number,number][] = [-2,-1,0,1,2].map(x=>[x*1.2,0,-20]);
   const [slots,setSlots] = useState<Array<{id:number;char:string}|null>>([null,null,null,null,null]);
   const lockInPos: [number,number,number] = [0,0.5,-22];
@@ -27,7 +36,25 @@ export function Game() {
     const used = Array(5).fill(false);
     for (let i=0;i<5;i++){ if(guess[i]===tArr[i]) { colors[i]='blue'; used[i]=true; } }
     for (let i=0;i<5;i++){ if(colors[i]==='blue') continue; const ch=guess[i]; let f=-1; for(let j=0;j<5;j++){ if(!used[j]&& tArr[j]===ch && guess[j]!==tArr[j]){ f=j; break;} } if(f!==-1){ colors[i]='yellow'; used[f]=true; } }
-    setGuesses(g=>[...g,guess]); setFeedback(f=>[...f,colors]);
+  setGuesses(g=>[...g,guess]); setFeedback(f=>[...f,colors]);
+  const isWin = guess === target;
+  if (isWin) {
+    setGameWon(true);
+    setElapsed((performance.now() - startTimeRef.current) / 1000);
+  } else {
+    // spawn monster only if not winning guess
+    const count = guesses.length + 1; // new count after adding
+    const speed = 1.5 + count * 0.7; // escalate speed
+    const angle = Math.random()*Math.PI*2;
+    const dist = 15; // spawn radius
+    const px = playerRef.current?.position.x || 0;
+    const pz = playerRef.current?.position.z || 0;
+    const mx = px + Math.cos(angle)*dist;
+    const mz = pz + Math.sin(angle)*dist;
+    const monsterPalette = ['#ff4444','#ff8844','#ffcc44','#ffee55','#ffffff'];
+    const color = monsterPalette[Math.min(monsterPalette.length-1, count-1)];
+    setMonsters(ms => [...ms, { id: Date.now(), speed, position:[mx,0.5,mz], color }]);
+  }
   };
 
   const ringPos = (idx:number):[number,number,number] => {
@@ -35,6 +62,7 @@ export function Game() {
   };
 
   const pickOrPlace = useCallback(()=>{
+  if (gameOver || gameWon) return; // disable interaction when over or won
     if(!playerRef.current) return;
     const p = playerRef.current.position;
 
@@ -97,7 +125,7 @@ export function Game() {
         if(d<1.2){ setHeld({ char: ALPHABET[i] }); return; }
       }
     }
-  }, [held, letters, slots, guesses, target]);
+  }, [held, letters, slots, guesses, target, gameOver]);
 
   return (
     <group>
@@ -106,6 +134,10 @@ export function Game() {
       {letters.map(l => (
         <LetterCube key={l.id} char={l.char} position={l.position} highlight={false} />
       ))}
+      {/* Monsters */}
+      {monsters.map(m => (
+        <Monster key={m.id} data={m} targetRef={playerRef} onCatch={()=> { if(!gameWon){ setGameOver(true); setElapsed((performance.now() - startTimeRef.current) / 1000); } }} />
+      ))}
   {/* Infinite pickup ring (gold) */}
   {ALPHABET.map((c,i)=>{ const [x,y,z]=ringPos(i); return <LetterCube key={'ring-'+c} char={c} position={[x,y,z]} color={'#c9a227'} />; })}
       {/* Guess slots */}
@@ -113,7 +145,7 @@ export function Game() {
         <group key={i} position={[pos[0],0,pos[2]]}>
           <mesh>
             <cylinderGeometry args={[0.5,0.5,0.25,24]} />
-            <meshStandardMaterial color={slots[i] ? '#555' : '#d93636ff'} />
+            <meshStandardMaterial color={slots[i] ? '#555555' : '#ffffff'} />
           </mesh>
           {slots[i] && <LetterCube char={slots[i]!.char} position={[0,0.9,0]} />}
         </group>
@@ -127,6 +159,19 @@ export function Game() {
       </group>
       {held && <LetterCube char={held.char} position={[0,-100,0]} attachToPlayer />}
       <Player ref={playerRef} onAction={pickOrPlace} heldChar={held?.char || null} />
+      {gameOver && !gameWon && (
+        <ResultOverlay mode="lose" time={elapsed!==null?formatTime(elapsed):undefined} onRestart={()=>location.reload()} />
+      )}
+      {gameWon && (
+        <ResultOverlay mode="win" time={elapsed!==null?formatTime(elapsed):undefined} targetWord={target.toUpperCase()} onRestart={()=>location.reload()} />
+      )}
     </group>
   );
+}
+
+function formatTime(sec:number){
+  const m = Math.floor(sec/60);
+  const s = Math.floor(sec%60);
+  const ms = Math.floor((sec*1000)%1000);
+  return `${m}:${s.toString().padStart(2,'0')}.${ms.toString().padStart(3,'0')}`;
 }

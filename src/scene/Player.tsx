@@ -6,15 +6,16 @@ import { LetterCube } from './LetterCube';
 interface PlayerProps {
   onAction: () => void;
   heldChar: string | null;
+  frozen?: boolean; // when true, stop movement & camera orbit
 }
 
 export interface PlayerHandle {
   position: Vector3;
 }
 
-const SPEED = 4;
+const SPEED = 16;
 
-export const Player = forwardRef<PlayerHandle, PlayerProps>(function Player({ onAction, heldChar }, ref) {
+export const Player = forwardRef<PlayerHandle, PlayerProps>(function Player({ onAction, heldChar, frozen }, ref) {
   const group = useRef<Group>(null!);
   const vel = useRef(new Vector3());
   const keys = useRef<Record<string, boolean>>({});
@@ -50,6 +51,14 @@ export const Player = forwardRef<PlayerHandle, PlayerProps>(function Player({ on
   }, [onAction]);
 
   useFrame((_, dt) => {
+    if (frozen) {
+      // Even when frozen, keep avatar facing away from camera (back of head toward camera)
+      const p = group.current.position;
+      const cx = camera.position.x - p.x;
+      const cz = camera.position.z - p.z;
+      group.current.rotation.y = Math.atan2(cx, cz);
+      return; // skip movement
+    }
     const k = keys.current;
     vel.current.set(0,0,0);
   // Build intent vector in camera-relative local space (XZ plane)
@@ -102,18 +111,81 @@ export const Player = forwardRef<PlayerHandle, PlayerProps>(function Player({ on
       target.y + r * Math.sin(cp),
       target.z + r * Math.cos(cp) * Math.sin(cy)
     );
-    camera.position.lerp(camTargetPos, 0.15);
-    camera.lookAt(target);
+  camera.position.lerp(camTargetPos, 0.15);
+  camera.lookAt(target);
+  // Face away from camera so camera sees the back of head.
+  // Compute yaw from player to camera (player->camera vector) so forward is opposite of camera view vector.
+  const p = group.current.position;
+  const cx = camera.position.x - p.x;
+  const cz = camera.position.z - p.z;
+  group.current.rotation.y = Math.atan2(cx, cz);
 
+  });
+
+  // Limb refs for animation
+  const armL = useRef<Group>(null!);
+  const armR = useRef<Group>(null!);
+  const legL = useRef<Group>(null!);
+  const legR = useRef<Group>(null!);
+  const timeRef = useRef(0);
+  const lastPos = useRef(new Vector3());
+
+  useFrame((_, dt) => {
+    // (movement already processed above unless frozen)
+    timeRef.current += dt;
+    if (frozen) return; // keep pose when frozen
+    const pos = group.current.position;
+    const moved = pos.distanceToSquared(lastPos.current) > 0.0001;
+    const swing = moved ? Math.sin(timeRef.current * 10) : 0;
+    // Basic opposing swings
+    if (armL.current) armL.current.rotation.x = swing * 0.6;
+    if (armR.current) armR.current.rotation.x = -swing * 0.6;
+    if (legL.current) legL.current.rotation.x = -swing * 0.6;
+    if (legR.current) legR.current.rotation.x = swing * 0.6;
+    lastPos.current.copy(pos);
   });
 
   return (
     <group ref={group} position={[0,0.5,4]}>
-      <mesh castShadow>
-        <sphereGeometry args={[0.4, 24, 24]} />
-        <meshStandardMaterial color="#ff6699" />
+      {/* Minecraft-style blocky avatar (approximate proportions) */}
+      {/* Torso */}
+      <mesh castShadow position={[0,0.95,0]}>
+        <boxGeometry args={[0.6,0.75,0.32]} />
+        <meshStandardMaterial color="#3a6ea5" />
       </mesh>
-      {heldChar && <group position={[0,0.9,0]}><LetterCube char={heldChar} position={[0,0,0]} /></group>}
+      {/* Head */}
+      <mesh castShadow position={[0,1.45,0]}>
+        <boxGeometry args={[0.5,0.5,0.5]} />
+        <meshStandardMaterial color="#d7b599" />
+      </mesh>
+      {/* Arms */}
+      <group ref={armL} position={[-0.46,1.15,0]}>
+        <mesh castShadow>
+          <boxGeometry args={[0.2,0.7,0.2]} />
+          <meshStandardMaterial color="#3a6ea5" />
+        </mesh>
+      </group>
+      <group ref={armR} position={[0.46,1.15,0]}>
+        <mesh castShadow>
+          <boxGeometry args={[0.2,0.7,0.2]} />
+          <meshStandardMaterial color="#3a6ea5" />
+        </mesh>
+      </group>
+      {/* Legs */}
+      <group ref={legL} position={[-0.18,0.5,0]}>
+        <mesh castShadow>
+          <boxGeometry args={[0.24,0.7,0.24]} />
+          <meshStandardMaterial color="#2d3e72" />
+        </mesh>
+      </group>
+      <group ref={legR} position={[0.18,0.5,0]}>
+        <mesh castShadow>
+          <boxGeometry args={[0.24,0.7,0.24]} />
+          <meshStandardMaterial color="#2d3e72" />
+        </mesh>
+      </group>
+      {/* Held letter - float above head */}
+      {heldChar && <group position={[0,1.9,0]}><LetterCube char={heldChar} position={[0,0,0]} /></group>}
     </group>
   );
 });

@@ -57,7 +57,6 @@ export const WordBoard: React.FC<WordBoardProps> = ({ target, guesses=[], feedba
       </mesh>
       {cells}
   {/* Debug target word (comment out for production) */}
-  <Text position={[0, (totalHeight/2)+0.8, 0]} fontSize={0.4} color="#555" anchorX="center" anchorY="middle">{target}</Text>
     </group>
   );
 };

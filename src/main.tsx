@@ -7,15 +7,29 @@ import { Game } from './../src/scene/Game'
 function App() {
   return (
     <>
-      <div className="hud">
-        <strong>3D Word Game (Prototype)</strong><br />
-        WASD / Arrows: Move | Space: Pick / Place | Q/E: Yaw | R/F: Up/Down
+      <div className="hud" style={{display:'flex',flexDirection:'column',gap:4}}>
+        <div>
+          <strong>3D Word Game (Prototype)</strong><br />
+          WASD / Arrows: Move | Space: Pick / Place | R/F: Up/Down
+        </div>
+        <button onClick={()=>location.reload()} style={{
+          alignSelf:'flex-start',
+          background:'#1b7fff',
+          color:'#fff',
+          border:'1px solid #fff',
+          borderRadius:6,
+          fontSize:12,
+          padding:'4px 10px',
+          cursor:'pointer',
+          fontWeight:600,
+          letterSpacing:'0.05em'
+        }}>Restart</button>
       </div>
-      <Canvas shadows camera={{ position: [6, 6, 8], fov: 55 }}>
+      <Canvas shadows camera={{ position: [6, 6, 8], fov: 90 }}>
         <color attach="background" args={["#05070a"]} />
         <ambientLight intensity={0.4} />
         <directionalLight position={[5,10,5]} intensity={1.2} castShadow shadow-mapSize-width={2048} shadow-mapSize-height={2048} />
-        <Stars radius={80} depth={40} count={4000} factor={4} fade />
+        <Stars radius={8} depth={40} count={20000} factor={4} fade />
         <Grid infiniteGrid sectionColor={"#444"} cellColor={"#222"} />
         <Game />
         <OrbitControls makeDefault enablePan={false} />
